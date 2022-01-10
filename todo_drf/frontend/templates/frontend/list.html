@@ -132,10 +132,13 @@
       }
       const csrftoken = getCookie('csrftoken');
 
+      let activeItem = null;
+
+      let list_snapshot = []
+
       function buildList() {
         let url = "http://localhost:8000/api/task-list/";
-
-        wrapper.innerHTML = '';
+        // wrapper.innerHTML = '';
 
         fetch(url)
           .then((res) => res.json())
@@ -143,7 +146,16 @@
             console.log(data);
 
             let list = data;
+            console.log(list.length)
             for (let i = 0; i < list.length; i++) {
+              //Sart of  Removing Duplicates added by insertAdjacentHTML
+              try {
+                document.getElementById(`data-row-${i}`).remove()
+              } catch (error) {
+                console.log(error)
+              }
+              //End of  Removing Duplicates added by insertAdjacentHTML
+              
               let item = `
                 <div id="data-row-${i}" class="task-wrapper flex-wrapper">
                     <div style="flex:7">
@@ -158,9 +170,49 @@
 
                 </div>
               `;
+              
+              
               wrapper.insertAdjacentHTML("beforeend", item);
+
+              const editbtn = document.querySelectorAll('.edit')[i];
+              editbtn.addEventListener('click', function(){
+                console.log(list[i])
+                document.getElementById('title').value = list[i].title
+                activeItem = list[i];
+              })
+
+              const deletebtn = document.querySelectorAll('.delete')[i];
+              deletebtn.addEventListener('click', function(){
+                // console.log(`Item ${i} was clicked`);
+                console.log(list[i]);
+                const del_url = `http://localhost:8000/api/task-delete/${list[i].id}/`;
+                const payload = { method: "DELETE", headers:{'Content-type': 'application/json', 'X-CSRFToken': csrftoken}}
+                fetch(del_url, payload).then(res => {
+                  buildList();
+                }).catch(err => console.err(new Error(err)))
+              });
+              const title = document.querySelectorAll('.title')[i];
+              
+              if(list[i].completed){
+                  title.style = 'text-decoration:line-through'
+                }
+              title.addEventListener('click', function(){
+                is_task_completed = !list[i].completed
+                let url = `http://localhost:8000/api/task-update/${list[i].id}/`
+                const payload = {method: "POST", headers:{'Content-type':'application/json', 'X-CSRFToken':csrftoken}, body:JSON.stringify({'title':list[i].title, 'completed':is_task_completed})}
+                fetch(url, payload).then(res => {
+                  buildList();
+                })
+              })
             }
+            if (list_snapshot.length > list.length){
+              for(let i = list.length; i < list_snapshot.length; i++){
+                document.getElementById(`data-row-${i}`).remove()
+              }
+            }
+            list_snapshot = list
           });
+          
       }
       buildList();
 
@@ -170,14 +222,24 @@
         let url = "http://localhost:8000/api/task-create/";
         const title = document.getElementById("title").value;
 
+        if (activeItem != null){
+          url = `http://localhost:8000/api/task-update/${activeItem.id}/`;
+          activeItem = null;
+        }
+
         fetch(url, {
           method: "POST",
           headers: {'X-CSRFToken': csrftoken, "Content-type": "application/json"},
           body: JSON.stringify({ 'title': title }),
         }).then(function(response){
           buildList();
+          document.getElementById('form').reset();
         }).catch(err => new Error(err));
       });
+
+      function strikeUnstrick(){
+
+      }
     </script>
   </body>
 </html>
